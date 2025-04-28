@@ -1,6 +1,11 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUser, faEnvelope, faBell, IconDefinition, faHome } from '@fortawesome/free-solid-svg-icons'
+import { faUser, faEnvelope, faBell, IconDefinition, faHome, faRightFromBracket } from '@fortawesome/free-solid-svg-icons'
 import NeumorphEyebrow from '../../commons/neumorph-eyebrow';
+import NeumorphButton from '@/components/commons/neumorph-button';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { environment } from '@/environments/environment';
+import { useCookies } from 'react-cookie';
 
 function NavItem({ icon, title, active = false }: { icon: IconDefinition, title: string, active?: boolean }) {
   return (
@@ -17,6 +22,21 @@ function NavItem({ icon, title, active = false }: { icon: IconDefinition, title:
 }
 
 export default function LeftSidenav() {
+  const [cookies] = useCookies(['access_token']);
+  const navigate = useNavigate();
+
+  const signOut = () => {
+    const token = cookies.access_token;
+    axios.get(`${environment.services.auth}/auth/logout`,
+      { withCredentials: true, headers: { Authorization: `Bearer ${token}` } })
+      .then(() => {
+        navigate('/');
+      })
+      .catch((error) => {
+        console.error('Error logging out:', error);
+      });
+  }
+
   return (
     <div className='flex flex-col items-start justify-between p-4 bg-white border-r border-gray-200 h-screen w-full'>
       <div className="flex flex-col items-start justify-start h-screen w-full">
@@ -30,6 +50,14 @@ export default function LeftSidenav() {
         <NavItem icon={faUser} title="Profile" />
         <NavItem icon={faEnvelope} title="Messages" />
         <NavItem icon={faBell} title="Notifications" />
+      </div>
+      <div className="flex items-center justify-center w-full mt-4">
+        <NeumorphButton fullWidth intent={'white'} className="mb-4" onClick={signOut}>
+          <div className="flex items-center justify-center">
+            <FontAwesomeIcon icon={faRightFromBracket} className="text-lg" />
+            <span className="font-bold ml-2">Sign Out</span>
+          </div>
+        </NeumorphButton>
       </div>
     </div>
   );
