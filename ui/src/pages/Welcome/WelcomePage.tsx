@@ -14,14 +14,15 @@ import { AuthContext } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useCookies } from "react-cookie";
 import { environment } from "@/environments/environment";
+import axios from "axios";
 
 const WelcomePage = () => {
   const [isSignInDialogOpen, setIsSignInDialogOpen] = React.useState(false);
   const [isSignUpDialogOpen, setIsSignUpDialogOpen] = React.useState(false);
   const { setUser } = React.useContext(AuthContext);
   const navigate = useNavigate();
-  const [cookies, setCookie] = useCookies(['access_token', 'refresh_token']);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [cookies] = useCookies(['access_token', 'refresh_token']);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   const adjectives = [
     "Authentic",
@@ -53,13 +54,28 @@ const WelcomePage = () => {
   }
 
   async function validateToken(token: string): Promise<{ valid: boolean; user?: any }> {
-    return fetch(
-      `${environment.services.auth}/auth/validate`,
-      { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => ({ valid: data.valid, user: data.user }))
-      .finally(() => {
-      });
+    try {
+      const response = await axios.get(
+        `${environment.services.auth}/auth/validate`,
+        { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      return { valid: false };
+    }
+  }
+
+  async function refreshToken(token: string): Promise<{ access_token: string; refresh_token: string }> {
+    try {
+      const response = await axios.get(
+        `${environment.services.auth}/auth/refresh`,
+        { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error refreshing token:", error);
+      return { access_token: "", refresh_token: "" };
+    }
   }
 
   React.useEffect(() => {
@@ -69,9 +85,15 @@ const WelcomePage = () => {
         const result = await validateToken(cookies.access_token);
         if (result.valid && result.user) {
           setUser(result.user);
-          setIsLoading(false);
           navigate("/home", { replace: true });
         } else {
+          const refreshResult = await refreshToken(cookies.refresh_token);
+          if (refreshResult.access_token && refreshResult.refresh_token) {
+            setUser(
+              JSON.parse(atob(refreshResult.access_token.split(".")[1]))
+            );
+            navigate("/home", { replace: true });
+          }
           setIsLoading(false);
           navigate("/", { replace: true });
         }
